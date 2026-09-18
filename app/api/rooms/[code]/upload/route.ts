@@ -140,7 +140,7 @@ export async function POST(request:Request,{params}:{params:{code:string}}){
         if(count>=room.maxSongs)throw new Error(`You already selected ${room.maxSongs} songs.`);
         return {allowedContentTypes:['audio/mpeg'],maximumSizeInBytes:30*1024*1024,addRandomSuffix:true,multipart:true,tokenPayload:JSON.stringify(payload)};
       },
-      onUploadCompleted:async({blob})=>{console.log('MixMate MP3 uploaded',blob.url)}
+      onUploadCompleted:async({blob})=>{console.log('MixMade MP3 uploaded',blob.url)}
     });
     return NextResponse.json(response);
   }catch(error){return NextResponse.json({error:error instanceof Error?error.message:String(error)},{status:400})}

@@ -1,6 +1,6 @@
-# MixMate — Production-ready starter
+# MixMade — Collaborative Playlist Rooms
 
-MixMate is a collaborative playlist room: each participant gets 10 song picks, exact duplicates are blocked, and similar songs are flagged so the final mix stays varied.
+MixMade is a collaborative playlist room: each participant adds their favorite tracks, exact duplicates are blocked, and similar songs are flagged so the final mix stays varied.
 
 ## Stack
 

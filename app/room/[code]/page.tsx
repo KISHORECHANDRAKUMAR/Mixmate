@@ -52,11 +52,13 @@ export default function Room(){
  useEffect(()=>{
   if(typeof window!=='undefined'){
    const urlName=qs.get('name')?.trim();
-   const storedName=localStorage.getItem('mixmate_name_'+code)||localStorage.getItem('mixmate_user_name')||'';
+   const storedName=localStorage.getItem('mixmade_name_'+code)||localStorage.getItem('mixmade_user_name')||localStorage.getItem('mixmate_name_'+code)||localStorage.getItem('mixmate_user_name')||'';
    const chosenName=urlName||storedName;
    if(chosenName){
     setName(chosenName);
     setTempName(chosenName);
+    localStorage.setItem('mixmade_name_'+code, chosenName);
+    localStorage.setItem('mixmade_user_name', chosenName);
     localStorage.setItem('mixmate_name_'+code, chosenName);
     localStorage.setItem('mixmate_user_name', chosenName);
    }
@@ -68,6 +70,8 @@ export default function Room(){
   if(!clean)return;
   setName(clean);
   if(typeof window!=='undefined'){
+   localStorage.setItem('mixmade_name_'+code, clean);
+   localStorage.setItem('mixmade_user_name', clean);
    localStorage.setItem('mixmate_name_'+code, clean);
    localStorage.setItem('mixmate_user_name', clean);
   }
@@ -382,7 +386,7 @@ export default function Room(){
  async function copyTracklist(){
   if(!room?.submissions?.length)return;
   const lines=room.submissions.map((s:any,i:number)=>`${i+1}. ${s.song.artist} - ${s.song.title}`);
-  const text=`🎵 MixMate Playlist: ${room.name}\nRoom: ${code}\n\n`+lines.join('\n')+`\n\nGenerated with MixMate`;
+  const text=`🎵 MixMade Playlist: ${room.name}\nRoom: ${code}\n\n`+lines.join('\n')+`\n\nGenerated with MixMade`;
   await navigator.clipboard.writeText(text);
   setMsg({type:'success',text:'Tracklist copied! Ready to paste into Spotify, Soundiiz, TuneMyMusic, or notes.'});
  }
@@ -407,14 +411,14 @@ export default function Room(){
 
  const mine = useMemo(()=>room?.submissions.filter((s:any)=>s.participant.name.toLowerCase()===name.toLowerCase())||[],[room,name]);
 
- if(!room)return <main className="center"><div className="loader">Loading MixMate room…</div></main>;
+ if(!room)return <main className="center"><div className="loader">Loading MixMade room…</div></main>;
 
  const maxSongs = room.maxSongs || 10;
  const remaining = Math.max(0, maxSongs - mine.length);
 
  return <main className="room">
   <header>
-   <div className="brand"><span className="dot">●</span> MIXMATE</div>
+   <div className="brand"><span className="dot">●</span> MIXMADE</div>
    <div className="header-actions">
     <div className="identity-pill" onClick={()=>setShowNameModal(true)} title="Click to change your name or claim creator">
      <User size={14}/>
@@ -648,7 +652,7 @@ export default function Room(){
 
   {msg?.type==='error'&&<div className="notice"><AlertTriangle size={17}/>{msg.text}</div>}
   {msg?.type==='success'&&<div className="notice good"><Check size={17}/>{msg.text}</div>}
-  {msg?.type==='similar'&&<div className="notice"><AlertTriangle size={17}/><div><b>Similar songs are already in this room.</b><div className="mini">You can still keep your pick; MixMate is only flagging it.</div><div className="similar">{msg.items?.map((x:any)=><div className="similar-row" key={x.title+x.artist}>{x.artworkUrl&&<img src={x.artworkUrl}/>}<div><b>{x.title}</b><small>{x.artist}</small></div></div>)}</div></div></div>}
+  {msg?.type==='similar'&&<div className="notice"><AlertTriangle size={17}/><div><b>Similar songs are already in this room.</b><div className="mini">You can still keep your pick; MixMade is only flagging it.</div><div className="similar">{msg.items?.map((x:any)=><div className="similar-row" key={x.title+x.artist}>{x.artworkUrl&&<img src={x.artworkUrl}/>}<div><b>{x.title}</b><small>{x.artist}</small></div></div>)}</div></div></div>}
 
   {tab==='add'&&<section className="grid tab-pane">
    <div className="panel">
@@ -700,7 +704,7 @@ export default function Room(){
     </div>
    </div>
    <aside className="panel side">
-    <h2>How MixMate works</h2>
+    <h2>How MixMade works</h2>
     <p><b>{maxSongs} picks each.</b> Your progress is shown above.</p>
     <p><b>Exact repeats are blocked.</b> The same catalog track or exact uploaded MP3 cannot be added twice.</p>
     <p><b>Similar songs are flagged.</b> We compare title, artist, album and duration to spot near-duplicates.</p>
@@ -714,11 +718,11 @@ export default function Room(){
     <div className="platform-bar">
      <div className="platform-bar-title">
       <h3>Play & Export Playlist</h3>
-      <p>Listen together right in MixMate, or open on your favorite streaming platform.</p>
+      <p>Listen together right in MixMade, or open on your favorite streaming platform.</p>
      </div>
      <div className="platform-buttons">
       <button
-       className={`platform-btn btn-mixmate ${isPlaying?'is-active':''}`}
+       className={`platform-btn btn-mixmade ${isPlaying?'is-active':''}`}
        onClick={()=>{
         if(isPlaying){
          audioRef.current?.pause();
@@ -731,10 +735,10 @@ export default function Room(){
         }
        }}
        disabled={room.submissions.length===0}
-       title="Play all tracks sequentially in MixMate"
+       title="Play all tracks sequentially in MixMade"
       >
        {isPlaying?<Pause size={15}/>:<Play size={15}/>}
-       <span>{isPlaying?'Pause Web Player':'Play All in MixMate'}</span>
+       <span>{isPlaying?'Pause Web Player':'Play All in MixMade'}</span>
       </button>
 
       <button
@@ -941,11 +945,11 @@ export default function Room(){
          </div>
 
          <div className="track-actions">
-          <button
-           className={`icon-link btn-play-row ${isCurrent&&isPlaying?'active':''}`}
-           onClick={()=>togglePlaySong(i)}
-           title={isCurrent && isPlaying ? 'Pause' : 'Play preview in MixMate'}
-          >
+           <button
+            className={`icon-link btn-play-row ${isCurrent&&isPlaying?'active':''}`}
+            onClick={()=>togglePlaySong(i)}
+            title={isCurrent && isPlaying ? 'Pause' : 'Play preview in MixMade'}
+           >
            {isCurrent && isPlaying ? <Pause size={15}/> : <Play size={15}/>}
           </button>
 

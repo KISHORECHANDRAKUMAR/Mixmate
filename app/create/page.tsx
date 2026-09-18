@@ -23,6 +23,8 @@ export default function Create(){
    const d=await r.json();
    if(!r.ok)throw new Error(d.error||'Could not create room');
    if(typeof window!=='undefined'){
+    localStorage.setItem('mixmade_name_'+d.code,creatorName.trim());
+    localStorage.setItem('mixmade_user_name',creatorName.trim());
     localStorage.setItem('mixmate_name_'+d.code,creatorName.trim());
     localStorage.setItem('mixmate_user_name',creatorName.trim());
    }
@@ -36,7 +38,7 @@ export default function Create(){
 
  return <main className="center">
   <form className="card form" onSubmit={go}>
-   <div className="brand"><span className="dot">●</span> MIXMATE</div>
+   <div className="brand"><span className="dot">●</span> MIXMADE</div>
    <h1>Create a room</h1>
    <p>Start a shared playlist. Everyone gets {Number(maxSongs)||10} picks and the room updates automatically.</p>
    

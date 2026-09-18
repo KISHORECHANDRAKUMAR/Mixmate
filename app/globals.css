@@ -47,9 +47,9 @@
 .platform-buttons{display:flex;flex-wrap:wrap;gap:8px}
 .platform-btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:999px;font-size:12px;font-weight:700;border:0;cursor:pointer;transition:all .18s ease;text-decoration:none}
 .platform-btn:disabled{opacity:.4;cursor:not-allowed}
-.btn-mixmate{background:#133321;color:#52f38d;border:1px solid #255d3a}
-.btn-mixmate:hover:not(:disabled){background:var(--green);color:#061008}
-.btn-mixmate.is-active{background:var(--green);color:#061008;animation:pulse 1.8s infinite}
+.btn-mixmade,.btn-mixmate{background:#133321;color:#52f38d;border:1px solid #255d3a}
+.btn-mixmade:hover:not(:disabled),.btn-mixmate:hover:not(:disabled){background:var(--green);color:#061008}
+.btn-mixmade.is-active,.btn-mixmate.is-active{background:var(--green);color:#061008;animation:pulse 1.8s infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(30,215,96,0.5)}50%{box-shadow:0 0 0 8px rgba(30,215,96,0)}}
 .btn-spotify{background:#0e2b19;color:#1ed760;border:1px solid #1a4d2c}
 .btn-spotify:hover:not(:disabled){background:#1ed760;color:#000}
