@@ -40,7 +40,7 @@ export default function Create(){
   <form className="card form" onSubmit={go}>
    <div className="brand"><span className="dot">●</span> MIXMADE</div>
    <h1>Create a room</h1>
-   <p>Start a shared playlist. Everyone gets {Number(maxSongs)||10} picks and the room updates automatically.</p>
+   <p>Start a shared playlist. Everyone gets {Number(maxSongs)||10} picks (locked for the room) and updates in real-time.</p>
    
    <label>Playlist name
     <input required value={name} onChange={e=>setName(e.target.value)} placeholder="College Trip 2026" maxLength={80}/>
@@ -50,7 +50,7 @@ export default function Create(){
     <input required value={creatorName} onChange={e=>setCreatorName(e.target.value)} placeholder="Kishore" maxLength={40}/>
    </label>
 
-   <label>Songs limit per person (1–50)
+   <label>Songs limit per person (1–50) · locked once created
     <div className="limit-stepper-row" style={{marginTop:'8px',marginBottom:'10px'}}>
      <button type="button" className="stepper-btn" onClick={()=>setMaxSongs(c=>Math.max(1,(Number(c)||10)-1))}>-</button>
      <input

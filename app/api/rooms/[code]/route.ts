@@ -48,11 +48,7 @@ export async function PATCH(req:Request,{params}:{params:{code:string}}){
   }
   const data:any={};
   if(body.maxSongs!==undefined){
-   const maxSongs=Number(body.maxSongs);
-   if(isNaN(maxSongs)||maxSongs<1||maxSongs>50){
-    return NextResponse.json({error:'Song limit must be between 1 and 50.'},{status:400});
-   }
-   data.maxSongs=maxSongs;
+   return NextResponse.json({error:'Songs limit per person is set during room creation and cannot be changed.'},{status:400});
   }
   if(body.allowDownloads!==undefined){
    data.allowDownloads=Boolean(body.allowDownloads);

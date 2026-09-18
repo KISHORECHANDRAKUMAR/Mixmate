@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {useParams,useSearchParams} from 'next/navigation';
-import {Search,Copy,Check,AlertTriangle,Users,Music2,ExternalLink,RefreshCw,Upload,Download,Play,Pause,Trash2,Sliders,SkipBack,SkipForward,Shuffle,X,User,FileDown,Repeat,ListMusic,Sparkles} from 'lucide-react';
+import {Search,Copy,Check,AlertTriangle,Users,Music2,ExternalLink,RefreshCw,Upload,Download,Play,Pause,Trash2,Sliders,SkipBack,SkipForward,Shuffle,X,User,FileDown,Repeat,ListMusic,Sparkles,Lock} from 'lucide-react';
 import {findDuplicateSubmission} from '@/lib/similarity';
 
 type Msg = {type:'error'|'success'|'similar'; text?:string; items?:any[]} | null;
@@ -17,7 +17,6 @@ export default function Room(){
  const [showNameModal, setShowNameModal] = useState(false);
  const [showSpotifyModal, setShowSpotifyModal] = useState(false);
  const [tempName, setTempName] = useState('');
- const [customLimit, setCustomLimit] = useState<number|string>(10);
  const [customAllowDownloads, setCustomAllowDownloads] = useState(true);
  const [isLoop, setIsLoop] = useState(true);
  const [showQueue, setShowQueue] = useState(false);
@@ -92,7 +91,6 @@ export default function Room(){
  },[code]);
 
  const openSettings = () => {
-  setCustomLimit(room?.maxSongs || 10);
   setCustomAllowDownloads(room?.allowDownloads ?? true);
   setShowSettings(true);
  };
@@ -178,8 +176,6 @@ export default function Room(){
  }
 
  async function saveSettings(){
-  const targetLimit = Number(customLimit);
-  if(isNaN(targetLimit)||targetLimit<1||targetLimit>50)return;
   setBusy(true);
   try{
    const sender = (name || room?.creatorName || '').trim();
@@ -188,7 +184,6 @@ export default function Room(){
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
      participantName: sender,
-     maxSongs: targetLimit,
      allowDownloads: customAllowDownloads
     })
    });
@@ -197,8 +192,8 @@ export default function Room(){
     setMsg({type:'error',text:d.error||'Failed to update room settings.'});
     return;
    }
-   setRoom((prev:any) => prev ? ({...prev, maxSongs: d.maxSongs, allowDownloads: d.allowDownloads}) : prev);
-   setMsg({type:'success',text:`Settings updated! Limit: ${d.maxSongs} songs per person.`});
+   setRoom((prev:any) => prev ? ({...prev, allowDownloads: d.allowDownloads}) : prev);
+   setMsg({type:'success',text:'Room settings updated successfully.'});
    setShowSettings(false);
    await load();
   }catch(e:any){
@@ -487,45 +482,15 @@ export default function Room(){
      
      <div className="setting-group">
       <label className="setting-label">
-       <span>Songs Limit Per Person (1–50)</span>
-       <small>Selected limit: <b>{Number(customLimit)||maxSongs}</b> picks / person</small>
+       <span>Songs Limit Per Person</span>
+       <div style={{display:'flex',alignItems:'center',gap:'10px',marginTop:'8px',background:'#0d1011',padding:'12px 14px',borderRadius:'12px',border:'1px solid #23292b'}}>
+        <Lock size={18} style={{color:'var(--green)',flexShrink:0}}/>
+        <div>
+         <div style={{fontWeight:700,fontSize:'14px',color:'#fff'}}>{maxSongs} picks / person</div>
+         <div style={{fontSize:'12px',color:'#7e8587',marginTop:'2px'}}>Configured during room creation and locked for this playlist.</div>
+        </div>
+       </div>
       </label>
-      <div className="limit-stepper-row">
-       <button type="button" className="stepper-btn" onClick={()=>setCustomLimit(c=>Math.max(1,(Number(c)||10)-1))}>-</button>
-       <input
-        type="number"
-        min="1"
-        max="50"
-        className="stepper-input"
-        value={customLimit}
-        onChange={e=>{
-         const v=e.target.value;
-         if(v===''){
-          setCustomLimit('');
-         }else{
-          const n=parseInt(v,10);
-          if(!isNaN(n)) setCustomLimit(Math.max(1,Math.min(50,n)));
-         }
-        }}
-        onBlur={()=>{
-         if(!customLimit||isNaN(Number(customLimit))) setCustomLimit(room?.maxSongs||10);
-        }}
-       />
-       <button type="button" className="stepper-btn" onClick={()=>setCustomLimit(c=>Math.min(50,(Number(c)||10)+1))}>+</button>
-      </div>
-      <div className="preset-chips">
-       <span className="preset-label">Quick Presets:</span>
-       {[3, 5, 10, 15, 20, 25, 30].map(n=>(
-        <button
-         key={n}
-         type="button"
-         className={`preset-chip ${Number(customLimit)===n?'active':''}`}
-         onClick={()=>setCustomLimit(n)}
-        >
-         {n} picks
-        </button>
-       ))}
-      </div>
      </div>
 
      <div className="setting-group">
