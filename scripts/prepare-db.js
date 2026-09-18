@@ -13,12 +13,20 @@ if (!fs.existsSync(sqliteBakPath) && fs.existsSync(schemaPath)) {
   }
 }
 
+const { execSync } = require('child_process');
+
 const dbUrl = process.env.DATABASE_URL || '';
 const isPostgres = dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://');
 
 if (isPostgres && fs.existsSync(postgresBakPath)) {
   console.log('⚡ Detected PostgreSQL database URL. Using PostgreSQL Prisma schema.');
   fs.copyFileSync(postgresBakPath, schemaPath);
+  try {
+    console.log('⚡ Syncing PostgreSQL database schema with prisma db push...');
+    execSync('npx prisma db push --skip-generate', { stdio: 'inherit' });
+  } catch (err) {
+    console.warn('⚠️ Warning during prisma db push:', err.message);
+  }
 } else if (fs.existsSync(sqliteBakPath)) {
   console.log('⚡ Using SQLite Prisma schema.');
   fs.copyFileSync(sqliteBakPath, schemaPath);
