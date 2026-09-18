@@ -1,0 +1,25 @@
+const fs = require('fs');
+const path = require('path');
+
+const schemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
+const postgresBakPath = path.join(__dirname, '..', 'prisma', 'schema.prisma.postgres.bak');
+const sqliteBakPath = path.join(__dirname, '..', 'prisma', 'schema.prisma.sqlite.bak');
+
+// Backup sqlite schema if not already present
+if (!fs.existsSync(sqliteBakPath) && fs.existsSync(schemaPath)) {
+  const current = fs.readFileSync(schemaPath, 'utf8');
+  if (current.includes('provider = "sqlite"')) {
+    fs.writeFileSync(sqliteBakPath, current, 'utf8');
+  }
+}
+
+const dbUrl = process.env.DATABASE_URL || '';
+const isPostgres = dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://');
+
+if (isPostgres && fs.existsSync(postgresBakPath)) {
+  console.log('⚡ Detected PostgreSQL database URL. Using PostgreSQL Prisma schema.');
+  fs.copyFileSync(postgresBakPath, schemaPath);
+} else if (fs.existsSync(sqliteBakPath)) {
+  console.log('⚡ Using SQLite Prisma schema.');
+  fs.copyFileSync(sqliteBakPath, schemaPath);
+}

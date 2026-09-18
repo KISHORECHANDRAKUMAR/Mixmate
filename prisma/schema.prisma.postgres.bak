@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Room {
+  id              String        @id @default(cuid())
+  code            String        @unique
+  name            String
+  creatorName     String
+  allowDownloads  Boolean       @default(true)
+  status          RoomStatus    @default(OPEN)
+  maxSongs        Int           @default(10)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  participants    Participant[]
+  submissions     Submission[]
+}
+
+enum RoomStatus {
+  OPEN
+  CLOSED
+}
+
+model Participant {
+  id          String       @id @default(cuid())
+  roomId      String
+  name        String
+  joinedAt    DateTime     @default(now())
+  room        Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+
+  @@unique([roomId, name])
+  @@index([roomId])
+}
+
+model Song {
+  id          String       @id @default(cuid())
+  provider    String
+  providerId  String
+  title       String
+  artist      String
+  album       String?
+  artworkUrl  String?
+  durationMs  Int?
+  trackUrl    String?
+  previewUrl  String?
+  metadata    Json?
+  submissions Submission[]
+
+  @@unique([provider, providerId])
+}
+
+model Submission {
+  id            String      @id @default(cuid())
+  roomId        String
+  participantId String
+  songId        String
+  createdAt     DateTime    @default(now())
+  room          Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  song          Song        @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, songId])
+  @@index([roomId, participantId])
+}
