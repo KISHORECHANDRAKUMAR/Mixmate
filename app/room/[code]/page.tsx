@@ -51,8 +51,8 @@ export default function Room(){
  useEffect(()=>{
   if(typeof window!=='undefined'){
    const urlName=qs.get('name')?.trim();
-   const storedName=localStorage.getItem('mixmade_name_'+code)||localStorage.getItem('mixmade_user_name')||localStorage.getItem('mixmate_name_'+code)||localStorage.getItem('mixmate_user_name')||'';
-   const chosenName=urlName||storedName;
+   const storedRoomName=localStorage.getItem('mixmade_name_'+code)||localStorage.getItem('mixmate_name_'+code)||'';
+   const chosenName=urlName||storedRoomName;
    if(chosenName){
     setName(chosenName);
     setTempName(chosenName);
@@ -60,11 +60,19 @@ export default function Room(){
     localStorage.setItem('mixmade_user_name', chosenName);
     localStorage.setItem('mixmate_name_'+code, chosenName);
     localStorage.setItem('mixmate_user_name', chosenName);
+    if(urlName && window.location.search){
+     window.history.replaceState(null, '', '/room/'+code);
+    }
+   }else{
+    // New visitor who hasn't joined this room yet
+    const prevName=localStorage.getItem('mixmade_user_name')||localStorage.getItem('mixmate_user_name')||'';
+    if(prevName) setTempName(prevName);
+    setShowNameModal(true);
    }
   }
  },[code,qs]);
 
- const saveName=(newName:string)=>{
+ const saveName=async (newName:string)=>{
   const clean=newName.trim();
   if(!clean)return;
   setName(clean);
@@ -75,7 +83,17 @@ export default function Room(){
    localStorage.setItem('mixmate_user_name', clean);
   }
   setShowNameModal(false);
-  fetch('/api/rooms/'+code+'/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:clean})}).catch(()=>{});
+  try{
+   await fetch('/api/rooms/'+code+'/join',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:clean})
+   });
+   setMsg({type:'success',text:`Welcome to the room, ${clean}!`});
+   await load();
+  }catch(e){
+   console.error('Failed to join room:', e);
+  }
  };
 
  const load = useCallback(async()=>{
@@ -257,7 +275,8 @@ export default function Room(){
  }
 
  async function copy(){
-  await navigator.clipboard.writeText(location.href);
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/room/${code}` : location.href;
+  await navigator.clipboard.writeText(shareUrl);
   setCopied(true);
   setTimeout(()=>setCopied(false),1800);
  }
@@ -513,27 +532,31 @@ export default function Room(){
   )}
 
   {showNameModal && (
-   <div className="modal-overlay" onClick={()=>setShowNameModal(false)}>
+   <div className="modal-overlay" onClick={()=>{ if(name) setShowNameModal(false); }}>
     <div className="modal-card" onClick={e=>e.stopPropagation()}>
      <div className="modal-header">
-      <div className="modal-title"><User size={18}/> Your Name in Room</div>
-      <button className="modal-close" onClick={()=>setShowNameModal(false)}><X size={18}/></button>
+      <div className="modal-title"><User size={18}/> {name ? 'Your Name in Room' : 'Join Room'}</div>
+      {name && <button className="modal-close" onClick={()=>setShowNameModal(false)}><X size={18}/></button>}
      </div>
-     <p className="modal-desc">Enter your name so others can see who added each song. The room creator is <b>{room.creatorName}</b>.</p>
+     <p className="modal-desc">
+      {name
+        ? <>Update your name in this room. The room creator is <b>{room.creatorName}</b>.</>
+        : <>Enter your name to join <b>"{room.name}"</b> as a member and start adding songs.</>}
+     </p>
      <div className="form-group">
       <input
        autoFocus
        value={tempName}
        onChange={e=>setTempName(e.target.value)}
-       placeholder="Enter your name..."
+       placeholder="Enter your name to join..."
        maxLength={40}
        className="name-modal-input"
-       onKeyDown={e=>e.key==='Enter'&&saveName(tempName)}
+       onKeyDown={e=>e.key==='Enter'&&tempName.trim()&&saveName(tempName)}
       />
      </div>
      <div className="modal-actions">
       <button className="primary modal-btn" onClick={()=>saveName(tempName)} disabled={!tempName.trim()}>
-       Continue
+       {name ? 'Save' : 'Join Room'}
       </button>
       {room.creatorName && (
        <button className="secondary modal-btn" onClick={()=>{setTempName(room.creatorName);saveName(room.creatorName);}}>
