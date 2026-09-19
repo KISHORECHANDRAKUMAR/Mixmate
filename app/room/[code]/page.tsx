@@ -30,6 +30,20 @@ export default function Room(){
  const [copied, setCopied] = useState(false);
  const [searching, setSearching] = useState(false);
 
+ // Streaming Platform Permission State
+ const [platformTarget, setPlatformTarget] = useState<{
+  platform: 'spotify' | 'ytmusic' | 'applemusic' | 'amazon';
+  name: string;
+  color: string;
+  appSchemeName: string;
+  title: string;
+  artist?: string;
+  appUri: string;
+  webUrl: string;
+  artworkUrl?: string;
+ } | null>(null);
+ const [rememberPlatformChoice, setRememberPlatformChoice] = useState(false);
+
  // MP3 Upload State
  const [file, setFile] = useState<File|null>(null);
  const [uploadTitle, setUploadTitle] = useState('');
@@ -367,35 +381,117 @@ export default function Room(){
   setMsg({type:'success',text:'Tracklist copied to clipboard! On TuneMyMusic, pick "From Text File", paste, and choose Spotify.'});
  }
 
- function openYtMusicPlaylist(){
-  if(!room?.submissions?.length){
-   setMsg({type:'error',text:'Add songs first before launching YouTube Music.'});
-   return;
-  }
-  const sample = room.submissions.slice(0, 3).map((s:any) => `${s.song.artist} ${s.song.title}`).join(' ');
-  const q = encodeURIComponent(`${room.name} playlist ${sample}`);
-  window.open(`https://music.youtube.com/search?q=${q}`,'_blank');
- }
+  function getPlatformUrls(platform: 'spotify' | 'ytmusic' | 'applemusic' | 'amazon', song?: any) {
+   const query = song ? `${song.title} ${song.artist}` : `${room?.name || 'MixMade'} playlist ${room?.submissions?.slice(0, 3).map((s:any)=>s.song.artist).join(' ') || ''}`;
+   const encodedQuery = encodeURIComponent(query.trim());
 
- function openAppleMusic(){
-  if(!room?.submissions?.length){
-   setMsg({type:'error',text:'Add songs first before launching Apple Music.'});
-   return;
-  }
-  const sample = room.submissions.slice(0, 2).map((s:any) => `${s.song.artist} ${s.song.title}`).join(' ');
-  const q = encodeURIComponent(`${room.name} ${sample}`);
-  window.open(`https://music.apple.com/search?term=${q}`,'_blank');
- }
+   if (platform === 'spotify') {
+    const hasSpotifyId = song?.provider === 'spotify' && song?.providerId;
+    const appUri = hasSpotifyId ? `spotify:track:${song.providerId}` : `spotify:search:${encodedQuery}`;
+    const webUrl = hasSpotifyId ? `https://open.spotify.com/track/${song.providerId}` : `https://open.spotify.com/search/${encodedQuery}`;
+    return {
+     name: 'Spotify',
+     color: '#1ed760',
+     appSchemeName: 'Spotify App',
+     appUri,
+     webUrl
+    };
+   }
 
- function openAmazonMusic(){
-  if(!room?.submissions?.length){
-   setMsg({type:'error',text:'Add songs first before launching Amazon Music.'});
-   return;
+   if (platform === 'ytmusic') {
+    return {
+     name: 'YouTube Music',
+     color: '#ff4444',
+     appSchemeName: 'YouTube Music App',
+     appUri: `youtubemusic://search?q=${encodedQuery}`,
+     webUrl: `https://music.youtube.com/search?q=${encodedQuery}`
+    };
+   }
+
+   if (platform === 'applemusic') {
+    const isAppleUrl = song?.trackUrl && song.provider === 'apple';
+    const appUri = isAppleUrl ? song.trackUrl.replace(/^https?:\/\//i, 'music://') : `music://music.apple.com/search?term=${encodedQuery}`;
+    const webUrl = isAppleUrl ? song.trackUrl : `https://music.apple.com/search?term=${encodedQuery}`;
+    return {
+     name: 'Apple Music',
+     color: '#fa3c61',
+     appSchemeName: 'Apple Music App',
+     appUri,
+     webUrl
+    };
+   }
+
+   if (platform === 'amazon') {
+    return {
+     name: 'Amazon Music',
+     color: '#25d1da',
+     appSchemeName: 'Amazon Music App',
+     appUri: `amznmp3://search?term=${encodedQuery}`,
+     webUrl: `https://music.amazon.com/search/${encodedQuery}`
+    };
+   }
+
+   return { name: '', color: '', appSchemeName: '', appUri: '', webUrl: '' };
   }
-  const sample = room.submissions.slice(0, 3).map((s:any) => `${s.song.artist} ${s.song.title}`).join(' ');
-  const q = encodeURIComponent(`${room.name} ${sample}`);
-  window.open(`https://music.amazon.com/search/${q}`,'_blank');
- }
+
+  function openPlatform(platform: 'spotify' | 'ytmusic' | 'applemusic' | 'amazon', song?: any) {
+   if (!song && !room?.submissions?.length) {
+    setMsg({ type: 'error', text: 'Add songs first before launching playlist on streaming platforms.' });
+    return;
+   }
+   const info = getPlatformUrls(platform, song);
+   const remembered = typeof window !== 'undefined' ? localStorage.getItem('mixmade_pref_' + platform) : null;
+
+   if (remembered === 'app') {
+    executeAppLaunch(info.appUri, info.webUrl, info.name);
+    return;
+   }
+   if (remembered === 'web') {
+    window.open(info.webUrl, '_blank');
+    return;
+   }
+
+   // Prompt for user permission
+   setPlatformTarget({
+    platform,
+    name: info.name,
+    color: info.color,
+    appSchemeName: info.appSchemeName,
+    title: song?.title || `${room?.name} (Whole Playlist)`,
+    artist: song?.artist || `${room?.submissions?.length || 0} songs`,
+    appUri: info.appUri,
+    webUrl: info.webUrl,
+    artworkUrl: song?.artworkUrl
+   });
+  }
+
+  function executeAppLaunch(appUri: string, webUrl: string, platformName: string) {
+   setMsg({ type: 'success', text: `Opening in ${platformName} app…` });
+   const start = Date.now();
+   window.location.href = appUri;
+
+   // Fallback if app is not installed (page remains visible after timeout)
+   setTimeout(() => {
+    if (Date.now() - start < 2500 && document.visibilityState === 'visible') {
+     window.open(webUrl, '_blank');
+    }
+   }, 1200);
+  }
+
+  function confirmPlatformChoice(mode: 'app' | 'web') {
+   if (!platformTarget) return;
+   if (rememberPlatformChoice && typeof window !== 'undefined') {
+    localStorage.setItem('mixmade_pref_' + platformTarget.platform, mode);
+   }
+
+   if (mode === 'app') {
+    executeAppLaunch(platformTarget.appUri, platformTarget.webUrl, platformTarget.name);
+   } else {
+    window.open(platformTarget.webUrl, '_blank');
+   }
+   setPlatformTarget(null);
+   setRememberPlatformChoice(false);
+  }
 
  async function copyTracklist(){
   if(!room?.submissions?.length)return;
@@ -632,7 +728,7 @@ export default function Room(){
    </div>
   )}
 
-  <div className="tabs">
+  <div className="tabs desktop-tabs">
    <button onClick={()=>setTab('playlist')} className={tab==='playlist'?'active':''}>Playlist ({room.submissions.length})</button>
    <button onClick={()=>setTab('add')} className={tab==='add'?'active':''}>Add songs</button>
    <button onClick={()=>setTab('people')} className={tab==='people'?'active':''}>People ({room.participants.length})</button>
@@ -731,9 +827,9 @@ export default function Room(){
 
       <button
        className="platform-btn btn-spotify"
-       onClick={openSpotifyPlaylist}
+       onClick={()=>openPlatform('spotify', null)}
        disabled={room.submissions.length===0}
-       title="Search & Play on Spotify"
+       title="Search & Play on Spotify App or Web"
       >
        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
         <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.5 17.3c-.2.3-.6.4-.9.2-2.5-1.5-5.6-1.9-9.3-1-.4.1-.7-.1-.8-.5-.1-.4.1-.7.5-.8 4.1-1 7.5-.6 10.3 1.1.3.2.4.6.2 1zm1.5-3.3c-.3.4-.8.5-1.2.3-2.9-1.8-7.3-2.3-10.7-1.3-.4.1-.9-.1-1-.5-.1-.4.1-.9.5-1 3.9-1.2 8.8-.6 12.1 1.4.4.2.5.7.3 1.1zm.1-3.5C15.6 8.4 9.8 8.2 6.4 9.2c-.5.2-1-.1-1.2-.6-.2-.5.1-1 .6-1.2 4-1.2 10.4-1 14.4 1.4.5.3.6.9.3 1.4-.3.5-.9.6-1.4.3z"/>
@@ -743,9 +839,9 @@ export default function Room(){
 
       <button
        className="platform-btn btn-ytmusic"
-       onClick={openYtMusicPlaylist}
+       onClick={()=>openPlatform('ytmusic', null)}
        disabled={room.submissions.length===0}
-       title="Play on YouTube Music"
+       title="Play on YouTube Music App or Web"
       >
        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
         <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S6.624 0 12 0zm0 19.2c-3.97 0-7.2-3.23-7.2-7.2s3.23-7.2 7.2-7.2 7.2 3.23 7.2 7.2-3.23 7.2-7.2 7.2zm-2.4-10.8v7.2l6-3.6-6-3.6z"/>
@@ -755,9 +851,9 @@ export default function Room(){
 
       <button
        className="platform-btn btn-applemusic"
-       onClick={openAppleMusic}
+       onClick={()=>openPlatform('applemusic', null)}
        disabled={room.submissions.length===0}
-       title="Open in Apple Music"
+       title="Open in Apple Music App or Web"
       >
        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
         <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.38c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.64 1.35-.57.65-1.06 1.71-.93 2.73 1.01.08 2.03-.48 2.65-1.23"/>
@@ -767,9 +863,9 @@ export default function Room(){
 
       <button
        className="platform-btn btn-amazonmusic"
-       onClick={openAmazonMusic}
+       onClick={()=>openPlatform('amazon', null)}
        disabled={room.submissions.length===0}
-       title="Play on Amazon Music"
+       title="Play on Amazon Music App or Web"
       >
        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
@@ -941,54 +1037,50 @@ export default function Room(){
            {isCurrent && isPlaying ? <Pause size={15}/> : <Play size={15}/>}
           </button>
 
-          <a
+          <button
+           type="button"
            className="icon-link link-spotify"
-           href={`https://open.spotify.com/search/${encodeURIComponent(s.song.title+' '+s.song.artist)}`}
-           target="_blank"
-           rel="noreferrer"
-           title="Listen on Spotify"
+           onClick={()=>openPlatform('spotify', s.song)}
+           title="Listen on Spotify App or Web"
           >
            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
             <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.5 17.3c-.2.3-.6.4-.9.2-2.5-1.5-5.6-1.9-9.3-1-.4.1-.7-.1-.8-.5-.1-.4.1-.7.5-.8 4.1-1 7.5-.6 10.3 1.1.3.2.4.6.2 1zm1.5-3.3c-.3.4-.8.5-1.2.3-2.9-1.8-7.3-2.3-10.7-1.3-.4.1-.9-.1-1-.5-.1-.4.1-.9.5-1 3.9-1.2 8.8-.6 12.1 1.4.4.2.5.7.3 1.1zm.1-3.5C15.6 8.4 9.8 8.2 6.4 9.2c-.5.2-1-.1-1.2-.6-.2-.5.1-1 .6-1.2 4-1.2 10.4-1 14.4 1.4.5.3.6.9.3 1.4-.3.5-.9.6-1.4.3z"/>
            </svg>
-          </a>
+          </button>
 
-          <a
+          <button
+           type="button"
            className="icon-link link-ytmusic"
-           href={`https://music.youtube.com/search?q=${encodeURIComponent(s.song.title+' '+s.song.artist)}`}
-           target="_blank"
-           rel="noreferrer"
-           title="Listen on YouTube Music"
+           onClick={()=>openPlatform('ytmusic', s.song)}
+           title="Listen on YouTube Music App or Web"
           >
            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
             <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S6.624 0 12 0zm0 19.2c-3.97 0-7.2-3.23-7.2-7.2s3.23-7.2 7.2-7.2 7.2 3.23 7.2 7.2-3.23 7.2-7.2 7.2zm-2.4-10.8v7.2l6-3.6-6-3.6z"/>
            </svg>
-          </a>
+          </button>
 
-          <a
+          <button
+           type="button"
            className="icon-link link-applemusic"
-           href={s.song.trackUrl && !uploaded ? s.song.trackUrl : `https://music.apple.com/search?term=${encodeURIComponent(s.song.title+' '+s.song.artist)}`}
-           target="_blank"
-           rel="noreferrer"
-           title="Listen on Apple Music"
+           onClick={()=>openPlatform('applemusic', s.song)}
+           title="Listen on Apple Music App or Web"
           >
            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
             <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.38c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.64 1.35-.57.65-1.06 1.71-.93 2.73 1.01.08 2.03-.48 2.65-1.23"/>
            </svg>
-          </a>
+          </button>
 
-          <a
+          <button
+           type="button"
            className="icon-link link-amazon"
-           href={`https://music.amazon.com/search/${encodeURIComponent(s.song.title+' '+s.song.artist)}`}
-           target="_blank"
-           rel="noreferrer"
-           title="Listen on Amazon Music"
+           onClick={()=>openPlatform('amazon', s.song)}
+           title="Listen on Amazon Music App or Web"
           >
            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
             <path d="M4 21.5c4-1.2 8-1.2 12 0 .3.1.6-.1.5-.4-.1-.3-.4-.4-.7-.5-3.8-1.1-7.8-1.1-11.6 0-.3.1-.4.4-.3.7.1.1.2.2.4.2z"/>
            </svg>
-          </a>
+          </button>
 
           {uploaded && room.allowDownloads && s.song.trackUrl && (
            <a className="icon-link link-download" href={s.song.trackUrl} download title="Download MP3">
@@ -1034,6 +1126,111 @@ export default function Room(){
     })}
    </section>
   )}
+
+  {/* Streaming Platform App vs Web Permission Modal */}
+  {platformTarget && (
+   <div className="modal-overlay" onClick={()=>setPlatformTarget(null)}>
+    <div className="modal-card platform-permission-modal" onClick={e=>e.stopPropagation()}>
+     <div className="modal-header">
+      <div className="modal-title" style={{color: platformTarget.color}}>
+       <Sparkles size={18}/> Open in {platformTarget.name}
+      </div>
+      <button className="modal-close" onClick={()=>setPlatformTarget(null)}><X size={18}/></button>
+     </div>
+
+     <div className="permission-song-card">
+      {platformTarget.artworkUrl ? (
+       <img src={platformTarget.artworkUrl} alt="" className="permission-thumb"/>
+      ) : (
+       <div className="permission-thumb-placeholder"><Music2 size={20}/></div>
+      )}
+      <div style={{minWidth: 0, flex: 1}}>
+       <b style={{display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{platformTarget.title}</b>
+       <span style={{display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#889497', fontSize: '12px'}}>{platformTarget.artist}</span>
+      </div>
+     </div>
+
+     <p className="modal-desc" style={{margin: '14px 0 16px', fontSize: '13px', lineHeight: '1.5'}}>
+      Would you like MixMade to launch the <b>{platformTarget.name} app</b> on your device, or continue in your web browser?
+     </p>
+
+     <label className="check-row" style={{marginBottom: '18px', background: '#0a0e0c', padding: '10px 12px', borderRadius: '10px', border: '1px solid #1c2720', cursor: 'pointer'}}>
+      <input type="checkbox" checked={rememberPlatformChoice} onChange={e=>setRememberPlatformChoice(e.target.checked)}/>
+      <span>Always remember my preference for {platformTarget.name}</span>
+     </label>
+
+     <div className="platform-choice-actions">
+      <button
+       className="primary modal-btn btn-open-app"
+       style={{background: platformTarget.color, color: platformTarget.platform==='spotify'?'#000':'#fff'}}
+       onClick={()=>confirmPlatformChoice('app')}
+      >
+       <ExternalLink size={16}/> Open in {platformTarget.name} App
+      </button>
+      <button
+       className="secondary modal-btn"
+       onClick={()=>confirmPlatformChoice('web')}
+      >
+       Open in Web Browser
+      </button>
+     </div>
+    </div>
+   </div>
+  )}
+
+  {/* Mobile Floating Mini Player */}
+  {currentPlayingSong && (
+   <div className="mobile-mini-player" onClick={()=>setTab('playlist')}>
+    <div className="mini-progress-bar" style={{width: duration ? `${(currentTime/duration)*100}%` : '0%'}} />
+    <div className="mini-player-content">
+     <div className="mini-cover">
+      {currentPlayingSong.artworkUrl ? (
+       <img src={currentPlayingSong.artworkUrl} alt={currentPlayingSong.title} className={isPlaying ? 'art-spinning' : ''} />
+      ) : (
+       <Music2 size={16}/>
+      )}
+     </div>
+     <div className="mini-meta">
+      <b>{currentPlayingSong.title}</b>
+      <span>{currentPlayingSong.artist}</span>
+     </div>
+     <div className="mini-actions" onClick={e=>e.stopPropagation()}>
+      <button className="mini-btn-play" onClick={()=>playingIndex !== null && togglePlaySong(playingIndex)} title={isPlaying ? 'Pause' : 'Play'}>
+       {isPlaying ? <Pause size={17}/> : <Play size={17}/>}
+      </button>
+      <button className="mini-btn-next" onClick={playNext} title="Next song">
+       <SkipForward size={17}/>
+      </button>
+     </div>
+    </div>
+   </div>
+  )}
+
+  {/* Mobile Bottom Navigation Bar */}
+  <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
+   <button className={`mobile-nav-item ${tab==='playlist'?'active':''}`} onClick={()=>setTab('playlist')}>
+    <div className="mobile-nav-icon-wrap">
+     <ListMusic size={20}/>
+     {room.submissions.length > 0 && <span className="mobile-nav-badge">{room.submissions.length}</span>}
+    </div>
+    <span>Playlist</span>
+   </button>
+
+   <button className={`mobile-nav-item ${tab==='add'?'active':''}`} onClick={()=>setTab('add')}>
+    <div className="mobile-nav-icon-wrap">
+     <Search size={20}/>
+     {remaining > 0 && <span className="mobile-nav-badge-accent">{remaining}</span>}
+    </div>
+    <span>Add Songs</span>
+   </button>
+
+   <button className={`mobile-nav-item ${tab==='people'?'active':''}`} onClick={()=>setTab('people')}>
+    <div className="mobile-nav-icon-wrap">
+     <Users size={20}/>
+     <span className="mobile-nav-badge">{room.participants.length}</span>
+    </div>
+    <span>People</span>
+   </button>
+  </nav>
  </main>;
 }
-

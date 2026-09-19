@@ -41,3 +41,5 @@ prisma/*.tmp*
 # uploads
 public/uploads/*
 !public/uploads/.gitkeep
+
+.vercel
