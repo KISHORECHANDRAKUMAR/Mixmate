@@ -15,8 +15,12 @@ if (!fs.existsSync(sqliteBakPath) && fs.existsSync(schemaPath)) {
 
 const { execSync } = require('child_process');
 
-const dbUrl = process.env.DATABASE_URL || '';
+const dbUrl = process.env.DATABASE_URL || process.env.STORAGE_URL || process.env.STORAGE_DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || '';
 const isPostgres = dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://');
+
+if (isPostgres) {
+  process.env.DATABASE_URL = dbUrl;
+}
 
 if (isPostgres && fs.existsSync(postgresBakPath)) {
   console.log('⚡ Detected PostgreSQL database URL. Using PostgreSQL Prisma schema.');
